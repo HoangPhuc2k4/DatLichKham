@@ -211,7 +211,7 @@ class _BookingPageState extends State<BookingPage> {
       ),
     );
   }
-
+#
   Widget _RightColumn() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
