@@ -1130,4 +1130,4 @@ class _TimeCard extends StatelessWidget {
 }
 
 // Footer đã được tách ra widget dùng chung: `AppFooter` (lib/views/widgets/app_footer.dart)
-
+// Code cua Trinh Duc Khanh

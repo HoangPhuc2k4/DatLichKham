@@ -167,33 +167,33 @@ class _HeroHeader extends StatelessWidget {
       padding: EdgeInsets.only(top: width < 600 ? 8 : 16),
       child: isDesktop
           ? Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Expanded(
-                  flex: 7,
-                  child: _HeroLeft(
-                    doctor: doctor,
-                    headlineSize: headlineSize,
-                  ),
-                ),
-                const SizedBox(width: 24),
-                Expanded(
-                  flex: 5,
-                  child: _HeroRight(doctor: doctor),
-                ),
-              ],
-            )
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _HeroRight(doctor: doctor),
-                const SizedBox(height: 18),
-                _HeroLeft(
-                  doctor: doctor,
-                  headlineSize: headlineSize,
-                ),
-              ],
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Expanded(
+            flex: 7,
+            child: _HeroLeft(
+              doctor: doctor,
+              headlineSize: headlineSize,
             ),
+          ),
+          const SizedBox(width: 24),
+          Expanded(
+            flex: 5,
+            child: _HeroRight(doctor: doctor),
+          ),
+        ],
+      )
+          : Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _HeroRight(doctor: doctor),
+          const SizedBox(height: 18),
+          _HeroLeft(
+            doctor: doctor,
+            headlineSize: headlineSize,
+          ),
+        ],
+      ),
     );
   }
 }
@@ -647,8 +647,8 @@ class _SpecializationsPanel extends StatelessWidget {
     final specs = doctor.specializations.isNotEmpty
         ? doctor.specializations
         : (doctor.specialty.isNotEmpty
-            ? <String>[doctor.specialty]
-            : <String>['Khám tổng quát']);
+        ? <String>[doctor.specialty]
+        : <String>['Khám tổng quát']);
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(40),
@@ -801,4 +801,5 @@ class _SpecializationsPanel extends StatelessWidget {
     );
   }
 }
+// Code cua Trinh Duc Khanh
 
