@@ -1,5 +1,4 @@
 import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -23,6 +22,9 @@ class _AllDoctorsPageState extends State<AllDoctorsPage> {
   bool _argApplied = false;
   final _searchController = TextEditingController();
 
+  static const Color primaryMedical = Color(0xFF006A62);
+  static const Color backgroundLight = Color(0xFFF8FAFA);
+
   @override
   void initState() {
     super.initState();
@@ -37,6 +39,7 @@ class _AllDoctorsPageState extends State<AllDoctorsPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Xử lý arguments từ Navigator
     if (!_argApplied) {
       final arg = ModalRoute.of(context)?.settings.arguments;
       if (arg is String && arg.trim().isNotEmpty) {
@@ -45,13 +48,15 @@ class _AllDoctorsPageState extends State<AllDoctorsPage> {
       }
       _argApplied = true;
     }
+
     final width = MediaQuery.sizeOf(context).width;
     final isLoggedIn = SessionController.instance.currentUser != null;
-    final cols = width >= 1200 ? 4 : width >= 900 ? 3 : width >= 650 ? 2 : 1;
-    final titleSize = width >= 900 ? 44.0 : width >= 600 ? 38.0 : 30.0;
+
+    // Grid Logic
+    final crossAxisCount = width >= 1100 ? 4 : width >= 800 ? 3 : width >= 600 ? 2 : 1;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFA),
+      backgroundColor: backgroundLight,
       body: SafeArea(
         child: Column(
           children: [
@@ -59,128 +64,41 @@ class _AllDoctorsPageState extends State<AllDoctorsPage> {
               isDesktop: width >= 900,
               isLoggedIn: isLoggedIn,
               activeKey: 'specialists',
-              onTapFindCare: () =>
-                  Navigator.of(context).pushReplacementNamed('/user/doctors'),
-              onTapSpecialists: () =>
-                  Navigator.of(context).pushReplacementNamed('/user/doctors'),
-              onTapSchedule: () =>
-                  Navigator.of(context).pushReplacementNamed('/user/appointments'),
-              onTapMyHealth: () =>
-                  Navigator.of(context).pushReplacementNamed('/user/appointments'),
+              onTapFindCare: () => Navigator.of(context).pushReplacementNamed('/user/doctors'),
+              onTapSpecialists: () {},
+              onTapSchedule: () => Navigator.of(context).pushNamed('/user/appointments'),
+              onTapMyHealth: () => Navigator.of(context).pushNamed('/user/appointments'),
               onTapAuth: () {
-                if (!isLoggedIn) {
+                if (isLoggedIn) {
+                  SessionController.instance.logout();
+                  Navigator.of(context).pushReplacementNamed('/user/home');
+                } else {
                   Navigator.of(context).pushNamed('/');
-                  return;
                 }
-                SessionController.instance.logout();
-                Navigator.of(context).pushReplacementNamed('/user/home');
               },
             ),
             Expanded(
               child: SingleChildScrollView(
-                padding: EdgeInsets.symmetric(
-                  horizontal: width < 600 ? 16 : 24,
-                  vertical: width < 600 ? 16 : 28,
-                ),
                 child: Center(
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 1440),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Danh sách bác sĩ',
-                          style: GoogleFonts.epilogue(
-                            fontSize: titleSize,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: -1,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          'Tìm bác sĩ theo tên hoặc chuyên khoa. Bấm vào bác sĩ để xem chi tiết và đặt lịch.',
-                          style: GoogleFonts.manrope(
-                            fontWeight: FontWeight.w600,
-                            color:
-                                const Color(0xFF3C4947).withValues(alpha: 0.75),
-                          ),
-                        ),
-                        const SizedBox(height: 18),
-                        _SearchField(
-                          controller: _searchController,
-                          onChanged: (v) => setState(() => _query = v.trim()),
-                        ),
-                        const SizedBox(height: 18),
-                        FutureBuilder<List<Doctor>>(
-                          future: _future,
-                          builder: (context, snap) {
-                            if (!snap.hasData) {
-                              return const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 40),
-                                child: Center(
-                                  child: CircularProgressIndicator(),
-                                ),
-                              );
-                            }
-                            final all = snap.data!;
-                            final q = _query.toLowerCase();
-                            final filtered = q.isEmpty
-                                ? all
-                                : all.where((d) {
-                                    final hay = [
-                                      d.name,
-                                      d.specialty,
-                                      ...d.specializations,
-                                    ].join(' ').toLowerCase();
-                                    return hay.contains(q);
-                                  }).toList();
-
-                            if (filtered.isEmpty) {
-                              return Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 28),
-                                child: Text(
-                                  'Không tìm thấy bác sĩ phù hợp.',
-                                  style: GoogleFonts.manrope(
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              );
-                            }
-
-                            return GridView.builder(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              gridDelegate:
-                                  SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: cols,
-                                crossAxisSpacing: 18,
-                                mainAxisSpacing: 18,
-                                childAspectRatio: cols == 1 ? 2.6 : 0.88,
-                              ),
-                              itemCount: filtered.length,
-                              itemBuilder: (context, i) {
-                                final d = filtered[i];
-                                return _DoctorTile(
-                                  doctor: d,
-                                  onTap: () {
-                                    if (!isLoggedIn) {
-                                      Navigator.of(context).pushNamed('/');
-                                      return;
-                                    }
-                                    Navigator.of(context).pushNamed(
-                                      '/user/doctor',
-                                      arguments: d,
-                                    );
-                                  },
-                                );
-                              },
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 28),
-                        const AppFooter(),
-                      ],
+                    constraints: const BoxConstraints(maxWidth: 1200),
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: width < 600 ? 20 : 40,
+                        vertical: 40,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildHeader(),
+                          const SizedBox(height: 32),
+                          _buildSearchSection(),
+                          const SizedBox(height: 40),
+                          _buildGridArea(crossAxisCount, isLoggedIn),
+                          const SizedBox(height: 100),
+                          const AppFooter(),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -191,146 +109,245 @@ class _AllDoctorsPageState extends State<AllDoctorsPage> {
       ),
     );
   }
-}
 
-class _SearchField extends StatelessWidget {
-  final TextEditingController controller;
-  final ValueChanged<String> onChanged;
-  const _SearchField({required this.controller, required this.onChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(24),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+  Widget _buildHeader() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.85),
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: const Color(0xFFBBCAC6).withValues(alpha: 0.18),
+            color: primaryMedical.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(99),
+          ),
+          child: Text(
+            'CHUYÊN GIA Y TẾ',
+            style: GoogleFonts.manrope(
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              color: primaryMedical,
+              letterSpacing: 1.2,
             ),
           ),
-          child: Row(
-            children: [
-              const Icon(Icons.search, color: Color(0xFF006A62)),
-              const SizedBox(width: 10),
-              Expanded(
-                child: TextField(
-                  controller: controller,
-                  onChanged: onChanged,
-                  decoration: InputDecoration(
-                    hintText: 'Tìm theo tên / chuyên khoa / chuyên môn…',
-                    hintStyle: GoogleFonts.manrope(
-                      fontWeight: FontWeight.w600,
-                      color:
-                          const Color(0xFF3C4947).withValues(alpha: 0.45),
-                    ),
-                    border: InputBorder.none,
-                    isDense: true,
-                  ),
-                ),
-              ),
-            ],
+        ),
+        const SizedBox(height: 16),
+        Text(
+          'Đội ngũ Bác sĩ',
+          style: GoogleFonts.epilogue(
+            fontSize: 40,
+            fontWeight: FontWeight.w900,
+            color: const Color(0xFF191C1D),
           ),
         ),
+        const SizedBox(height: 12),
+        Text(
+          'Kết nối với những chuyên gia hàng đầu để nhận được sự chăm sóc tận tâm và phác đồ điều trị tối ưu nhất.',
+          style: GoogleFonts.manrope(
+            fontSize: 16,
+            height: 1.6,
+            color: const Color(0xFF3C4947).withOpacity(0.7),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSearchSection() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: TextField(
+        controller: _searchController,
+        onChanged: (v) => setState(() => _query = v.trim().toLowerCase()),
+        style: GoogleFonts.manrope(fontWeight: FontWeight.w600),
+        decoration: InputDecoration(
+          hintText: 'Tìm theo tên, chuyên khoa hoặc học hàm...',
+          hintStyle: GoogleFonts.manrope(color: Colors.grey, fontWeight: FontWeight.w500),
+          prefixIcon: const Icon(Icons.search_rounded, color: primaryMedical),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.all(20),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGridArea(int cols, bool isLoggedIn) {
+    return FutureBuilder<List<Doctor>>(
+      future: _future,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator(color: primaryMedical));
+        }
+
+        final list = snapshot.data ?? [];
+        final filtered = list.where((d) {
+          final s = _query;
+          return d.name.toLowerCase().contains(s) ||
+              d.specialty.toLowerCase().contains(s);
+        }).toList();
+
+        if (filtered.isEmpty) {
+          return _buildEmptyState();
+        }
+
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: cols,
+            crossAxisSpacing: 24,
+            mainAxisSpacing: 24,
+            mainAxisExtent: 380, // Chiều cao cố định cho card
+          ),
+          itemCount: filtered.length,
+          itemBuilder: (context, index) => _DoctorBentoCard(
+            doctor: filtered[index],
+            onTap: () => Navigator.of(context).pushNamed(
+              '/user/doctor-detail',
+              arguments: filtered[index].id,
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        children: [
+          const SizedBox(height: 40),
+          Icon(Icons.person_search_outlined, size: 64, color: Colors.grey[300]),
+          const SizedBox(height: 16),
+          Text(
+            'Không tìm thấy bác sĩ phù hợp',
+            style: GoogleFonts.manrope(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.grey),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _DoctorTile extends StatelessWidget {
+class _DoctorBentoCard extends StatefulWidget {
   final Doctor doctor;
   final VoidCallback onTap;
-  const _DoctorTile({required this.doctor, required this.onTap});
+
+  const _DoctorBentoCard({required this.doctor, required this.onTap});
+
+  @override
+  State<_DoctorBentoCard> createState() => _DoctorBentoCardState();
+}
+
+class _DoctorBentoCardState extends State<_DoctorBentoCard> {
+  bool _hovered = false;
 
   @override
   Widget build(BuildContext context) {
-    final specs = doctor.specializations.take(3).toList();
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(28),
-      child: Container(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(28),
-          border: Border.all(
-            color: const Color(0xFFBBCAC6).withValues(alpha: 0.18),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF191C1D).withValues(alpha: 0.06),
-              blurRadius: 30,
-              offset: const Offset(0, 18),
-            )
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(22),
-                child: DoctorImage(pathOrUrl: doctor.image, fit: BoxFit.cover),
-              ),
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: AnimatedScale(
+        scale: _hovered ? 1.02 : 1.0,
+        duration: const Duration(milliseconds: 200),
+        child: GestureDetector(
+          onTap: widget.onTap,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(_hovered ? 0.08 : 0.03),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
-            Text(
-              doctor.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.epilogue(
-                fontSize: 18,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              doctor.specialty,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.manrope(
-                fontWeight: FontWeight.w700,
-                color: const Color(0xFF006A62),
-              ),
-            ),
-            if (specs.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  for (final s in specs)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Ảnh bác sĩ
+                Expanded(
+                  child: Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.all(10),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(18),
+                      child: DoctorImage(
+                        pathOrUrl: widget.doctor.image,
+                        fit: BoxFit.cover,
                       ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF2F4F4),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        s,
-                        style: GoogleFonts.manrope(
-                          fontSize: 11,
+                    ),
+                  ),
+                ),
+                // Thông tin
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.doctor.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.epilogue(
+                          fontSize: 18,
                           fontWeight: FontWeight.w800,
-                          color: const Color(0xFF3C4947),
+                          color: const Color(0xFF191C1D),
                         ),
                       ),
-                    )
-                ],
-              ),
-            ],
-          ],
+                      const SizedBox(height: 4),
+                      Text(
+                        widget.doctor.specialty,
+                        style: GoogleFonts.manrope(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF006A62),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          _buildBadge(Icons.star_rounded, '4.9', const Color(0xFFF99A15)),
+                          _buildBadge(Icons.access_time_rounded, 'Có sẵn', Colors.blue),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
+
+  Widget _buildBadge(IconData icon, String label, Color color) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: color),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: GoogleFonts.manrope(
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+            color: const Color(0xFF3C4947),
+          ),
+        ),
+      ],
+    );
+  }
 }
-// Code cua Trinh Duc Khanh
-
-
