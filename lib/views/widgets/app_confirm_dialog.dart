@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -12,25 +11,16 @@ Future<bool> showAppConfirmDialog(
       String cancelText = 'HỦY',
       AppConfirmTone tone = AppConfirmTone.danger,
     }) async {
-  final res = await showGeneralDialog<bool>(
+  final res = await showDialog<bool>(
     context: context,
-    barrierDismissible: true,
-    barrierLabel: '',
-    barrierColor: Colors.black54, // Làm tối nền để nổi bật Dialog
-    transitionDuration: const Duration(milliseconds: 200),
-    pageBuilder: (context, anim1, anim2) => _AppConfirmDialog(
+    barrierDismissible: true, // Cho phép bấm ra ngoài để đóng
+    builder: (context) => _AppConfirmDialog(
       title: title,
       message: message,
       confirmText: confirmText,
       cancelText: cancelText,
       tone: tone,
     ),
-    transitionBuilder: (context, anim1, anim2, child) {
-      return ScaleTransition(
-        scale: CurvedAnimation(parent: anim1, curve: Curves.easeOutBack),
-        child: FadeTransition(opacity: anim1, child: child),
-      );
-    },
   );
   return res ?? false;
 }
@@ -52,110 +42,119 @@ class _AppConfirmDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Màu sắc theo tone nhưng theo hệ màu của trang chủ
     final isDanger = tone == AppConfirmTone.danger;
-    final accent = isDanger ? const Color(0xFFBA1A1A) : const Color(0xFF006A62);
-    final bgAccent = isDanger ? const Color(0xFFFFDAD6) : const Color(0xFFE6F4F1);
+    final accent = isDanger ? const Color(0xFFBA1A1A) : const Color(0xFF0D9488);
 
-    return Center(
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 24),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(32), // Bo góc lớn đồng bộ Bento
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-            child: Dialog(
-              backgroundColor: Colors.white.withOpacity(0.9),
-              elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 400), // Dialog nhỏ gọn hơn
-                child: Padding(
-                  padding: const EdgeInsets.all(32),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Icon Header nổi bật
-                      Container(
-                        width: 64,
-                        height: 64,
-                        decoration: BoxDecoration(
-                          color: bgAccent,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          isDanger ? Icons.report_problem_rounded : Icons.help_outline_rounded,
-                          color: accent,
-                          size: 32,
-                        ),
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 420),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 40,
+                offset: const Offset(0, 10),
+              )
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header với Icon
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: accent.withOpacity(0.1),
+                        shape: BoxShape.circle,
                       ),
-                      const SizedBox(height: 24),
-
-                      // Typography đồng bộ (Epilogue)
-                      Text(
+                      child: Icon(
+                        isDanger ? Icons.warning_amber_rounded : Icons.help_outline_rounded,
+                        color: accent,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Text(
                         title,
-                        textAlign: TextAlign.center,
                         style: GoogleFonts.epilogue(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w900,
-                          color: const Color(0xFF191C1D),
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF0F172A),
                           letterSpacing: -0.5,
                         ),
                       ),
-                      const SizedBox(height: 12),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
 
-                      // Message (Manrope)
-                      Text(
-                        message,
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.manrope(
-                          fontSize: 15,
-                          height: 1.6,
-                          color: const Color(0xFF3C4947),
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 32),
-
-                      // Action Buttons
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          // Nút Xác nhận (Primary)
-                          ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: accent,
-                              foregroundColor: Colors.white,
-                              elevation: 0,
-                              padding: const EdgeInsets.symmetric(vertical: 18),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                            ),
-                            onPressed: () => Navigator.pop(context, true),
-                            child: Text(
-                              confirmText,
-                              style: GoogleFonts.manrope(fontWeight: FontWeight.w800, fontSize: 14),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          // Nút Hủy (Secondary)
-                          TextButton(
-                            style: TextButton.styleFrom(
-                              foregroundColor: const Color(0xFF3C4947),
-                              padding: const EdgeInsets.symmetric(vertical: 18),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                            ),
-                            onPressed: () => Navigator.pop(context, false),
-                            child: Text(
-                              cancelText,
-                              style: GoogleFonts.manrope(fontWeight: FontWeight.w800, fontSize: 14),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                // Content
+                Text(
+                  message,
+                  style: GoogleFonts.manrope(
+                    fontSize: 15,
+                    height: 1.6,
+                    color: const Color(0xFF475569),
                   ),
                 ),
-              ),
+                const SizedBox(height: 32),
+
+                // Actions
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        onPressed: () => Navigator.pop(context, false),
+                        child: Text(
+                          cancelText,
+                          style: GoogleFonts.manrope(
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF64748B),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: FilledButton(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: accent,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        onPressed: () => Navigator.pop(context, true),
+                        child: Text(
+                          confirmText,
+                          style: GoogleFonts.manrope(
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         ),

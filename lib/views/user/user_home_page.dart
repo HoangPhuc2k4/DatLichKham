@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -16,7 +15,7 @@ class UserHomePage extends StatelessWidget {
     final isLoggedIn = SessionController.instance.currentUser != null;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFA),
+      backgroundColor: const Color(0xFFF8FAFC),
       body: SafeArea(
         child: Column(
           children: [
@@ -39,21 +38,23 @@ class UserHomePage extends StatelessWidget {
             ),
             Expanded(
               child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
                 child: Center(
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 1440),
+                    constraints: const BoxConstraints(maxWidth: 1200),
                     child: Padding(
                       padding: EdgeInsets.symmetric(
-                        horizontal: width < 600 ? 16 : 40,
-                        vertical: 32,
+                        horizontal: width < 600 ? 20 : 40,
+                        vertical: 40,
                       ),
                       child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           _HeroSection(width: width),
                           const SizedBox(height: 80),
-                          const _SpecialistsSection(),
+                          _SpecialistsSection(width: width),
                           const SizedBox(height: 80),
-                          const _ExperienceCareSection(),
+                          _FeaturesBentoGrid(width: width),
                           const SizedBox(height: 100),
                           const AppFooter(),
                         ],
@@ -76,75 +77,79 @@ class _HeroSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDesktop = width > 1000;
-    return isDesktop
-        ? Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Expanded(flex: 6, child: _HeroContent()),
-        const SizedBox(width: 60),
-        Expanded(flex: 5, child: _HeroVisual()),
-      ],
-    )
-        : Column(
-      children: [
-        _HeroContent(),
-        const SizedBox(height: 48),
-        _HeroVisual(),
-      ],
-    );
-  }
-}
-
-class _HeroContent extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
+    final isMobile = width < 900;
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: isMobile ? CrossAxisAlignment.center : CrossAxisAlignment.start,
       children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            color: const Color(0xFF006A62).withOpacity(0.1),
-            borderRadius: BorderRadius.circular(99),
-          ),
-          child: Text(
-            'HỆ THỐNG Y TẾ CAO CẤP',
-            style: GoogleFonts.manrope(
-              fontSize: 12,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 1.5,
-              color: const Color(0xFF006A62),
+        if (isMobile) const _HeroImageMobile(),
+        Row(
+          children: [
+            Expanded(
+              flex: 3,
+              child: Column(
+                crossAxisAlignment: isMobile ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0D9488).withAlpha(20),
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                    child: Text(
+                      'HỆ THỐNG Y TẾ CURATED',
+                      style: GoogleFonts.manrope(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFF0D9488),
+                        letterSpacing: 1.5,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Chăm sóc sức khỏe\ntheo cách tinh hoa.',
+                    textAlign: isMobile ? TextAlign.center : TextAlign.start,
+                    style: GoogleFonts.epilogue(
+                      fontSize: width < 600 ? 42 : 64,
+                      fontWeight: FontWeight.w900,
+                      color: const Color(0xFF0F172A),
+                      height: 1.1,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Kết nối trực tiếp với các chuyên gia đầu ngành. Trải nghiệm quy trình đặt lịch minh bạch, không chờ đợi.',
+                    textAlign: isMobile ? TextAlign.center : TextAlign.start,
+                    style: GoogleFonts.manrope(
+                      fontSize: 18,
+                      color: const Color(0xFF475569),
+                      height: 1.6,
+                    ),
+                  ),
+                  const SizedBox(height: 40),
+                  _MainSearchBar(isMobile: isMobile),
+                ],
+              ),
             ),
-          ),
+            if (!isMobile)
+              const Expanded(
+                flex: 2,
+                child: Padding(
+                  padding: EdgeInsets.only(left: 60),
+                  child: _HeroImageDesktop(),
+                ),
+              ),
+          ],
         ),
-        const SizedBox(height: 24),
-        Text(
-          'Health,\nCarefully Curated.',
-          style: GoogleFonts.epilogue(
-            fontSize: 64,
-            fontWeight: FontWeight.w900,
-            height: 1.0,
-            color: const Color(0xFF191C1D),
-          ),
-        ),
-        const SizedBox(height: 24),
-        Text(
-          'Trải nghiệm dịch vụ y tế đẳng cấp quốc tế. Kết nối trực tiếp với các chuyên gia đầu ngành trong không gian số cá nhân hóa.',
-          style: GoogleFonts.manrope(
-            fontSize: 18,
-            height: 1.6,
-            color: const Color(0xFF3C4947).withOpacity(0.8),
-          ),
-        ),
-        const SizedBox(height: 40),
-        _ModernSearchBar(),
       ],
     );
   }
 }
 
-class _ModernSearchBar extends StatelessWidget {
+class _MainSearchBar extends StatelessWidget {
+  final bool isMobile;
+  const _MainSearchBar({required this.isMobile});
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -154,34 +159,102 @@ class _ModernSearchBar extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 30,
-            offset: const Offset(0, 15),
+            color: Colors.black.withAlpha(10),
+            blurRadius: 40,
+            offset: const Offset(0, 20),
           ),
         ],
       ),
+      child: isMobile
+          ? Column(
+        children: [
+          _buildSearchField(Icons.search, 'Tên bác sĩ hoặc chuyên khoa'),
+          const Divider(),
+          _buildSearchField(Icons.location_on_outlined, 'Vị trí'),
+          const SizedBox(height: 8),
+          _buildSearchButton(true),
+        ],
+      )
+          : Row(
+        children: [
+          Expanded(child: _buildSearchField(Icons.search, 'Tên bác sĩ hoặc chuyên khoa')),
+          Container(width: 1, height: 30, color: Colors.grey[200]),
+          Expanded(child: _buildSearchField(Icons.location_on_outlined, 'Vị trí')),
+          _buildSearchButton(false),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchField(IconData icon, String hint) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: [
-          const SizedBox(width: 16),
-          const Icon(Icons.search, color: Color(0xFF006A62)),
+          Icon(icon, color: const Color(0xFF0D9488), size: 20),
           const SizedBox(width: 12),
           Expanded(
             child: TextField(
               decoration: InputDecoration(
-                hintText: 'Tìm chuyên khoa, bác sĩ...',
-                hintStyle: GoogleFonts.manrope(color: Colors.grey),
+                hintText: hint,
                 border: InputBorder.none,
+                hintStyle: GoogleFonts.manrope(color: Colors.grey[400], fontSize: 14),
               ),
             ),
           ),
-          ElevatedButton(
-            onPressed: () {},
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF006A62),
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchButton(bool fullWidth) {
+    return ElevatedButton(
+      onPressed: () {},
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFF0F172A),
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        elevation: 0,
+      ),
+      child: Text(
+        'Tìm kiếm',
+        style: GoogleFonts.manrope(fontWeight: FontWeight.w800),
+      ),
+    );
+  }
+}
+
+class _HeroImageDesktop extends StatelessWidget {
+  const _HeroImageDesktop();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 500,
+      decoration: BoxDecoration(
+        color: const Color(0xFFE2E8F0),
+        borderRadius: BorderRadius.circular(40),
+      ),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(40),
+            child: const DoctorImage(
+              pathOrUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuALzjGvI7RG-nVb5i62uMGRIwFkn1VaqIEJ8dKwOcBzjlE7JUMqqfVK3jB3wP_6m-OTymNgCeFebtLzZVBBTkhje88MfyZpwpcMWD3qRFtUouC4n04EA6-xdx_OcLODpP-vTLmT1IBVjaZQFDLbB-1t8I1jWtSznl57ZAN2te6dDUhf-uaogBTbThrBf76asK89gxPyYU8WKwT0cfmdpfBJ7jbuW-y3jSfnNCCMja3qm9C3IxCyCDl31BCMqkygDCGhWeX7Pr2pwbA',
+              fit: BoxFit.cover,
             ),
-            child: Text('Tìm kiếm', style: GoogleFonts.manrope(fontWeight: FontWeight.w800, color: Colors.white)),
+          ),
+          Positioned(
+            bottom: 40,
+            left: -30,
+            child: _InfoCard(
+              icon: Icons.star_rounded,
+              title: '4.9/5.0',
+              subtitle: 'Đánh giá trung bình',
+              color: const Color(0xFFF59E0B),
+            ),
           ),
         ],
       ),
@@ -189,68 +262,66 @@ class _ModernSearchBar extends StatelessWidget {
   }
 }
 
-class _HeroVisual extends StatelessWidget {
+class _HeroImageMobile extends StatelessWidget {
+  const _HeroImageMobile();
+
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Container(
-          height: 500,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(48),
-            image: const DecorationImage(
-              image: NetworkImage('https://images.unsplash.com/photo-1631217818202-90ef4a851c9c?q=80&w=2000'),
-              fit: BoxFit.cover,
-            ),
-          ),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 32),
+      height: 300,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: const Color(0xFFE2E8F0),
+        borderRadius: BorderRadius.circular(32),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(32),
+        child: const DoctorImage(
+          pathOrUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuALzjGvI7RG-nVb5i62uMGRIwFkn1VaqIEJ8dKwOcBzjlE7JUMqqfVK3jB3wP_6m-OTymNgCeFebtLzZVBBTkhje88MfyZpwpcMWD3qRFtUouC4n04EA6-xdx_OcLODpP-vTLmT1IBVjaZQFDLbB-1t8I1jWtSznl57ZAN2te6dDUhf-uaogBTbThrBf76asK89gxPyYU8WKwT0cfmdpfBJ7jbuW-y3jSfnNCCMja3qm9C3IxCyCDl31BCMqkygDCGhWeX7Pr2pwbA',
+          fit: BoxFit.cover,
         ),
-        Positioned(
-          bottom: 30,
-          left: -20,
-          child: _GlassCard(
-            child: Row(
-              children: [
-                const CircleAvatar(backgroundColor: Color(0xFFF99A15), child: Icon(Icons.star, color: Colors.white)),
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('4.9/5 Rating', style: GoogleFonts.epilogue(fontWeight: FontWeight.w900)),
-                    Text('Từ 2,000+ bệnh nhân', style: GoogleFonts.manrope(fontSize: 12)),
-                  ],
-                )
-              ],
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
 
-class _GlassCard extends StatelessWidget {
-  final Widget child;
-  const _GlassCard({required this.child});
+class _InfoCard extends StatelessWidget {
+  final IconData icon;
+  final String title, subtitle;
+  final Color color;
+
+  const _InfoCard({required this.icon, required this.title, required this.subtitle, required this.color});
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(24),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          color: Colors.white.withOpacity(0.8),
-          child: child,
-        ),
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [BoxShadow(color: Colors.black.withAlpha(10), blurRadius: 20)],
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(backgroundColor: color.withAlpha(30), child: Icon(icon, color: color)),
+          const SizedBox(width: 16),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: GoogleFonts.epilogue(fontWeight: FontWeight.w900, fontSize: 18)),
+              Text(subtitle, style: GoogleFonts.manrope(color: Colors.grey[600], fontSize: 12)),
+            ],
+          )
+        ],
       ),
     );
   }
 }
 
 class _SpecialistsSection extends StatelessWidget {
-  const _SpecialistsSection();
+  final double width;
+  const _SpecialistsSection({required this.width});
 
   @override
   Widget build(BuildContext context) {
@@ -263,163 +334,132 @@ class _SpecialistsSection extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('CHUYÊN GIA ĐƯỢC ĐỀ XUẤT', style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w900, color: const Color(0xFF895100), letterSpacing: 1.5)),
+                Text('CHUYÊN GIA NỔI BẬT', style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w800, color: const Color(0xFFF59E0B), letterSpacing: 1.5)),
                 const SizedBox(height: 8),
-                Text('Đội ngũ y bác sĩ ưu tú', style: GoogleFonts.epilogue(fontSize: 32, fontWeight: FontWeight.w900)),
+                Text('Đội ngũ bác sĩ hàng đầu', style: GoogleFonts.epilogue(fontSize: 32, fontWeight: FontWeight.w900, color: const Color(0xFF0F172A))),
               ],
             ),
             TextButton(
-              onPressed: () {},
-              child: Text('Xem tất cả →', style: GoogleFonts.manrope(fontWeight: FontWeight.w800, color: const Color(0xFF006A62))),
-            )
+              onPressed: () => Navigator.of(context).pushNamed('/user/doctors'),
+              child: Text('Xem tất cả →', style: GoogleFonts.manrope(fontWeight: FontWeight.w800, color: const Color(0xFF0D9488))),
+            ),
           ],
         ),
         const SizedBox(height: 40),
-        SizedBox(
-          height: 400,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            children: const [
-              _ModernDoctorCard(name: 'Dr. Sarah Jenkins', specialty: 'Tim mạch', rating: '4.9', imageIdx: 1),
-              SizedBox(width: 24),
-              _ModernDoctorCard(name: 'Dr. Marcus Thorne', specialty: 'Thần kinh', rating: '5.0', imageIdx: 2),
-              SizedBox(width: 24),
-              _ModernDoctorCard(name: 'Dr. Elena Rodriguez', specialty: 'Nhi khoa', rating: '4.8', imageIdx: 3),
-            ],
-          ),
+        GridView.count(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisCount: width < 600 ? 1 : width < 1000 ? 2 : 3,
+          mainAxisSpacing: 24,
+          crossAxisSpacing: 24,
+          childAspectRatio: 0.85,
+          children: const [
+            _DoctorCard(name: 'BS. Sarah Jenkins', role: 'Tim mạch', image: '1'),
+            _DoctorCard(name: 'BS. Marcus Thorne', role: 'Thần kinh', image: '2'),
+            _DoctorCard(name: 'BS. Elena Rodriguez', role: 'Nhi khoa', image: '3'),
+          ],
         ),
       ],
     );
   }
 }
 
-class _ModernDoctorCard extends StatelessWidget {
-  final String name, specialty, rating;
-  final int imageIdx;
-  const _ModernDoctorCard({required this.name, required this.specialty, required this.rating, required this.imageIdx});
+class _DoctorCard extends StatelessWidget {
+  final String name, role, image;
+  const _DoctorCard({required this.name, required this.role, required this.image});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 280,
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(32),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 20, offset: const Offset(0, 10))],
+        border: Border.all(color: const Color(0xFFF1F5F9)),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
-            child: Container(
-              margin: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(24),
-                image: DecorationImage(
-                  image: NetworkImage('http://googleusercontent.com/profile/picture/$imageIdx'),
-                  fit: BoxFit.cover,
-                ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(24),
+              child: DoctorImage(
+                pathOrUrl: 'http://googleusercontent.com/profile/picture/$image',
+                fit: BoxFit.cover,
+                width: double.infinity,
               ),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(name, style: GoogleFonts.epilogue(fontWeight: FontWeight.w900, fontSize: 18)),
-                const SizedBox(height: 4),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(specialty, style: GoogleFonts.manrope(color: const Color(0xFF006A62), fontWeight: FontWeight.w700)),
-                    Row(
-                      children: [
-                        const Icon(Icons.star, color: Color(0xFFF99A15), size: 16),
-                        Text(rating, style: const TextStyle(fontWeight: FontWeight.bold)),
-                      ],
-                    )
-                  ],
-                )
-              ],
-            ),
-          )
+          const SizedBox(height: 20),
+          Text(name, style: GoogleFonts.epilogue(fontSize: 18, fontWeight: FontWeight.w800)),
+          Text(role, style: GoogleFonts.manrope(color: const Color(0xFF0D9488), fontWeight: FontWeight.w600)),
         ],
       ),
     );
   }
 }
 
-class _ExperienceCareSection extends StatelessWidget {
-  const _ExperienceCareSection();
+class _FeaturesBentoGrid extends StatelessWidget {
+  final double width;
+  const _FeaturesBentoGrid({required this.width});
+
+  @override
+  Widget build(BuildContext context) {
+    final isMobile = width < 900;
+    return Column(
+      children: [
+        Text(
+          'Tại sao chọn Curated Clinic?',
+          style: GoogleFonts.epilogue(fontSize: 32, fontWeight: FontWeight.w900, color: const Color(0xFF0F172A)),
+        ),
+        const SizedBox(height: 48),
+        isMobile
+            ? Column(
+          children: [
+            _FeatureItem(icon: Icons.bolt, title: 'Đặt lịch tức thì', desc: 'Xác nhận lịch hẹn chỉ trong 60 giây.', color: const Color(0xFF0D9488)),
+            const SizedBox(height: 16),
+            _FeatureItem(icon: Icons.video_camera_front, title: 'Tư vấn từ xa', desc: 'Gặp bác sĩ mọi lúc mọi nơi qua video.', color: const Color(0xFFF59E0B)),
+          ],
+        )
+            : Row(
+          children: [
+            Expanded(child: _FeatureItem(icon: Icons.bolt, title: 'Đặt lịch tức thì', desc: 'Xác nhận lịch hẹn chỉ trong 60 giây.', color: const Color(0xFF0D9488))),
+            const SizedBox(width: 24),
+            Expanded(child: _FeatureItem(icon: Icons.video_camera_front, title: 'Tư vấn từ xa', desc: 'Gặp bác sĩ mọi lúc mọi nơi qua video.', color: const Color(0xFFF59E0B))),
+            const SizedBox(width: 24),
+            Expanded(child: _FeatureItem(icon: Icons.folder_special, title: 'Hồ sơ bảo mật', desc: 'Lưu trữ bệnh án an toàn tuyệt đối.', color: const Color(0xFF0F172A))),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _FeatureItem extends StatelessWidget {
+  final IconData icon;
+  final String title, desc;
+  final Color color;
+
+  const _FeatureItem({required this.icon, required this.title, required this.desc, required this.color});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(48),
+      padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
-        color: const Color(0xFF1B3A4B),
-        borderRadius: BorderRadius.circular(48),
+        color: color.withAlpha(10),
+        borderRadius: BorderRadius.circular(32),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Y tế số không rào cản.',
-                  style: GoogleFonts.epilogue(color: Colors.white, fontSize: 40, fontWeight: FontWeight.w900),
-                ),
-                const SizedBox(height: 32),
-                _FeatureBullet(icon: Icons.flash_on, title: 'Đặt lịch tức thì', desc: 'Xác nhận lịch hẹn chỉ trong 60 giây.'),
-                const SizedBox(height: 24),
-                _FeatureBullet(icon: Icons.videocam, title: 'Tư vấn Hybrid', desc: 'Linh hoạt giữa Online và trực tiếp tại phòng khám.'),
-              ],
-            ),
-          ),
-          const SizedBox(width: 48),
-          Expanded(
-            child: Container(
-              height: 300,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.05),
-                borderRadius: BorderRadius.circular(32),
-                border: Border.all(color: Colors.white.withOpacity(0.1)),
-              ),
-              child: const Center(child: Icon(Icons.play_circle_fill, size: 80, color: Colors.white)),
-            ),
-          )
+          Icon(icon, color: color, size: 32),
+          const SizedBox(height: 24),
+          Text(title, style: GoogleFonts.epilogue(fontSize: 20, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 12),
+          Text(desc, style: GoogleFonts.manrope(color: const Color(0xFF475569), fontSize: 15, height: 1.5)),
         ],
       ),
-    );
-  }
-}
-
-class _FeatureBullet extends StatelessWidget {
-  final IconData icon;
-  final String title, desc;
-  const _FeatureBullet({required this.icon, required this.title, required this.desc});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(color: const Color(0xFF2EC4B6).withOpacity(0.2), borderRadius: BorderRadius.circular(16)),
-          child: Icon(icon, color: const Color(0xFF2EC4B6)),
-        ),
-        const SizedBox(width: 20),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, style: GoogleFonts.manrope(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 18)),
-              Text(desc, style: GoogleFonts.manrope(color: Colors.white60)),
-            ],
-          ),
-        )
-      ],
     );
   }
 }

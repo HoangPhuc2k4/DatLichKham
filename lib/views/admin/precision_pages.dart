@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:drift/drift.dart' as drift;
 import 'dart:convert';
 
 import '../../controllers/appointment_controller.dart';
 import '../../controllers/doctor_controller.dart';
 import '../../controllers/schedule_controller.dart';
-import '../../database/app_database.dart';
-import '../../database/db_helper.dart';
+import '../../api/api_client.dart';
 import '../../models/appointment_details.dart';
 import '../../models/doctor.dart';
 import '../../models/schedule.dart';
@@ -27,65 +25,32 @@ class _PrecisionDashboardPageState extends State<PrecisionDashboardPage> {
   int rangeDays = 7;
 
   Future<_DashboardData> _loadDashboard() async {
-    final db = DbHelper.instance.db;
+    final raw = await ApiClient.instance.getJson(
+      '/admin/dashboard',
+      query: {'rangeDays': '$rangeDays'},
+    );
+    final m = raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
 
-    final users = await (db.select(db.users)..where((u) => u.role.equals('user'))).get();
-    final doctors = await (db.select(db.doctors)).get();
-    final appts = await (db.select(db.appointments)).get();
-    final pending = appts.where((a) => a.status == 'pending').length;
-    final confirmed = appts.where((a) => a.status == 'confirmed').length;
-    final cancelled = appts.where((a) => a.status == 'cancelled').length;
+    final efficiency = (m['efficiencyRating'] as num?)?.toDouble() ?? 0.0;
+    final occupancy = (m['occupancyPercent'] as num?)?.toDouble() ?? 0.0;
+    final avgWait = (m['avgWaitMinutes'] as num?)?.toDouble() ?? 0.0;
+    final pending = (m['pendingTriage'] as num?)?.toInt() ?? 0;
 
-    final efficiency = (confirmed + cancelled) == 0 ? 0.0 : (confirmed / (confirmed + cancelled)) * 100.0;
-
-    // Occupancy hôm nay = booked schedules / total schedules hôm nay
-    final now = DateTime.now();
-    final todayKey =
-        '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
-    final todaySlots = await (db.select(db.schedules)..where((s) => s.date.equals(todayKey))).get();
-    final bookedToday = todaySlots.where((s) => s.isBooked).length;
-    final occupancy = todaySlots.isEmpty ? 0.0 : (bookedToday / todaySlots.length) * 100.0;
-
-    // Trend series theo createdAt trong rangeDays
-    final end = DateTime(now.year, now.month, now.day);
-    final start = end.subtract(Duration(days: rangeDays - 1));
-    final buckets = <DateTime, int>{};
-    for (int i = 0; i < rangeDays; i++) {
-      final d = start.add(Duration(days: i));
-      buckets[DateTime(d.year, d.month, d.day)] = 0;
-    }
-    for (final a in appts) {
-      DateTime? t;
-      try {
-        t = DateTime.parse(a.createdAt);
-      } catch (_) {
-        t = null;
+    final seriesRaw = m['series'];
+    final series = <MapEntry<DateTime, int>>[];
+    if (seriesRaw is List) {
+      for (final it in seriesRaw) {
+        if (it is! Map) continue;
+        final mm = Map<String, dynamic>.from(it);
+        final dateStr = (mm['date'] as String?) ?? '';
+        final value = (mm['value'] as num?)?.toInt() ?? 0;
+        final parsed = DateTime.tryParse(dateStr);
+        if (parsed == null) continue;
+        series.add(MapEntry(DateTime(parsed.year, parsed.month, parsed.day), value));
       }
-      if (t == null) continue;
-      final day = DateTime(t.year, t.month, t.day);
-      if (day.isBefore(start) || day.isAfter(end)) continue;
-      buckets[day] = (buckets[day] ?? 0) + 1;
     }
-    final series = buckets.entries.toList()
-      ..sort((a, b) => a.key.compareTo(b.key));
 
     final recent = await AppointmentController.instance.getAllAppointmentsDetails();
-
-    // ER wait time "thật" (suy luận): trung bình phút chờ của pending (tính từ createdAt đến hiện tại) clamp 0..99
-    final pendingAppts = appts.where((a) => a.status == 'pending').toList();
-    double avgWait = 0;
-    if (pendingAppts.isNotEmpty) {
-      int sum = 0;
-      int n = 0;
-      for (final a in pendingAppts) {
-        try {
-          final t = DateTime.parse(a.createdAt);
-          sum += now.difference(t).inMinutes.clamp(0, 600);
-          n++;
-        } catch (_) {}
-      }
-      avgWait = n == 0 ? 0 : (sum / n);
-    }
 
     final alerts = <_Alert>[];
     if (pending >= 10) {
@@ -117,10 +82,10 @@ class _PrecisionDashboardPageState extends State<PrecisionDashboardPage> {
     }
 
     return _DashboardData(
-      totalPatients: users.length,
-      clinicalStaff: doctors.length,
-      scheduledVisits: appts.length,
-      pendingTriage: pending,
+      totalPatients: (m['totalPatients'] as num?)?.toInt() ?? 0,
+      clinicalStaff: (m['clinicalStaff'] as num?)?.toInt() ?? 0,
+      scheduledVisits: (m['scheduledVisits'] as num?)?.toInt() ?? 0,
+      pendingTriage: (m['pendingTriage'] as num?)?.toInt() ?? 0,
       efficiencyRating: efficiency,
       occupancyPercent: occupancy,
       avgWaitMinutes: avgWait,
@@ -962,27 +927,20 @@ class _PrecisionScheduleManagementPageState extends State<PrecisionScheduleManag
   Future<void> _loadGrid() async {
     if (_doctors.isEmpty) return;
     setState(() => loading = true);
-    final db = DbHelper.instance.db;
 
     if (!monthMode) {
       final cols = _columns();
       final dateKeys = cols.map(_dateKey).toList(growable: false);
       final doctorIds = _doctors.map((d) => d.id ?? -1).toList(growable: false);
-      final rows = await (db.select(db.schedules)
-            ..where((s) => s.date.isIn(dateKeys))
-            ..where((s) => s.doctorId.isIn(doctorIds)))
-          .get();
+      final data = await ApiClient.instance.postJson('/admin/schedules/grid', {
+        'doctorIds': doctorIds.where((x) => x > 0).toList(),
+        'dates': dateKeys,
+      });
+      final rows = data is List ? data.whereType<Map>().map((m) => Map<String, dynamic>.from(m)).toList() : <Map<String, dynamic>>[];
       _week.clear();
       for (final r in rows) {
-        final k = '${r.doctorId}|${r.date}';
-        final item = Schedule(
-          id: r.id,
-          doctorId: r.doctorId,
-          date: r.date,
-          startTime: r.startTime,
-          endTime: r.endTime,
-          isBooked: r.isBooked,
-        );
+        final item = Schedule.fromMap(r);
+        final k = '${item.doctorId}|${item.date}';
         (_week[k] ??= <Schedule>[]).add(item);
       }
     } else {
@@ -993,19 +951,29 @@ class _PrecisionScheduleManagementPageState extends State<PrecisionScheduleManag
         final next = DateTime(selectedDate.year, selectedDate.month + 1, 1);
         final daysInMonth = next.subtract(const Duration(days: 1)).day;
         final keys = List.generate(daysInMonth, (i) => _dateKey(first.add(Duration(days: i))));
-        final rows = await (db.select(db.schedules)
-              ..where((s) => s.doctorId.equals(d!.id!))
-              ..where((s) => s.date.isIn(keys)))
-            .get();
         for (final k in keys) {
           _monthCounts[k] = const _DayCount(total: 0, booked: 0);
         }
-        for (final r in rows) {
-          final prev = _monthCounts[r.date] ?? const _DayCount(total: 0, booked: 0);
-          _monthCounts[r.date] = _DayCount(
-            total: prev.total + 1,
-            booked: prev.booked + (r.isBooked ? 1 : 0),
-          );
+
+        final data = await ApiClient.instance.getJson(
+          '/admin/schedules/month-counts',
+          query: {
+            'doctorId': '${d!.id!}',
+            'year': '${selectedDate.year}',
+            'month': '${selectedDate.month}',
+          },
+        );
+        if (data is List) {
+          for (final it in data) {
+            if (it is! Map) continue;
+            final mm = Map<String, dynamic>.from(it);
+            final date = (mm['date'] as String?) ?? '';
+            if (date.isEmpty) continue;
+            _monthCounts[date] = _DayCount(
+              total: (mm['total'] as num?)?.toInt() ?? 0,
+              booked: (mm['booked'] as num?)?.toInt() ?? 0,
+            );
+          }
         }
       }
     }
@@ -1021,40 +989,15 @@ class _PrecisionScheduleManagementPageState extends State<PrecisionScheduleManag
       final key = '${s.start}-${s.end}';
       if (_shiftSelected[key] == true) desired[key] = s;
     }
-
-    final db = DbHelper.instance.db;
-    await db.transaction(() async {
-      final existing = await (db.select(db.schedules)
-            ..where((x) => x.doctorId.equals(doctorId))
-            ..where((x) => x.date.equals(date)))
-          .get();
-      final existingByKey = <String, dynamic>{
-        for (final r in existing) '${r.startTime}-${r.endTime}': r,
-      };
-
-      // insert missing
-      for (final entry in desired.entries) {
-        final k = entry.key;
-        if (existingByKey.containsKey(k)) continue;
-        final s = entry.value;
-        await db.into(db.schedules).insert(
-              SchedulesCompanion.insert(
-                doctorId: doctorId,
-                date: date,
-                startTime: s.start,
-                endTime: s.end,
-                isBooked: const drift.Value(false),
-              ),
-            );
-      }
-
-      // delete removed (only if not booked)
-      for (final r in existing) {
-        final k = '${r.startTime}-${r.endTime}';
-        if (desired.containsKey(k)) continue;
-        if (r.isBooked) continue;
-        await (db.delete(db.schedules)..where((x) => x.id.equals(r.id))).go();
-      }
+    await ApiClient.instance.postJson('/admin/schedules/bulk-set', {
+      'doctor_id': doctorId,
+      'date': date,
+      'shifts': desired.values
+          .map((s) => {
+                'start_time': s.start,
+                'end_time': s.end,
+              })
+          .toList(),
     });
 
     // reload selected day shifts
@@ -1663,31 +1606,28 @@ class _PrecisionAppointmentManagementPageState extends State<PrecisionAppointmen
   }
 
   Future<_ApptStats> _loadStats() async {
-    final db = DbHelper.instance.db;
-    final appts = await (db.select(db.appointments)).get();
-    final now = DateTime.now();
-    final todayKey =
-        '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
-    final todaySlots = await (db.select(db.schedules)..where((s) => s.date.equals(todayKey))).get();
-    final bookedToday = todaySlots.where((s) => s.isBooked).length;
-    final capacity = todaySlots.isEmpty ? 0.0 : (bookedToday / todaySlots.length);
+    final dash = await ApiClient.instance.getJson('/admin/dashboard', query: const {'rangeDays': '7'});
+    final m = dash is Map ? Map<String, dynamic>.from(dash) : <String, dynamic>{};
+    final occupancyPercent = (m['occupancyPercent'] as num?)?.toDouble() ?? 0.0;
+    final pending = (m['pendingTriage'] as num?)?.toInt() ?? 0;
 
-    final confirmed = appts.where((a) => a.status == 'confirmed').length;
-    final pending = appts.where((a) => a.status == 'pending').length;
-
-    // Clinicians active: distinct doctorId trong các appointment hôm nay (theo createdAt)
+    // confirmed/pending/cliniciansActive không có riêng trong endpoint dashboard hiện tại,
+    // nên lấy qua danh sách details và tính nhanh ở client (dữ liệu nhỏ theo UI).
+    final details = await AppointmentController.instance.getAllAppointmentsDetails();
+    final confirmed = details.where((d) => d.appointment.status == 'confirmed').length;
     final activeDoctorIds = <int>{};
-    for (final a in appts) {
+    final now = DateTime.now();
+    for (final d in details) {
       try {
-        final t = DateTime.parse(a.createdAt);
+        final t = DateTime.parse(d.appointment.createdAt);
         if (t.year == now.year && t.month == now.month && t.day == now.day) {
-          activeDoctorIds.add(a.doctorId);
+          activeDoctorIds.add(d.appointment.doctorId);
         }
       } catch (_) {}
     }
 
     return _ApptStats(
-      capacityPercent: (capacity * 100).clamp(0, 100).toDouble(),
+      capacityPercent: occupancyPercent.clamp(0, 100),
       confirmed: confirmed,
       pending: pending,
       cliniciansActive: activeDoctorIds.length,

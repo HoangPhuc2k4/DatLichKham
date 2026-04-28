@@ -1,7 +1,4 @@
-import 'package:drift/drift.dart';
-
-import '../database/app_database.dart';
-import '../database/db_helper.dart';
+import '../api/api_client.dart';
 import '../models/schedule.dart' as app;
 
 class ScheduleController {
@@ -12,58 +9,34 @@ class ScheduleController {
     required int doctorId,
     required String date,
   }) async {
-    final db = DbHelper.instance.db;
-    final rows = await (db.select(db.schedules)
-          ..where((s) => s.doctorId.equals(doctorId) & s.date.equals(date)))
-        .get();
-    return rows.map(_toAppSchedule).toList();
+    final data = await ApiClient.instance.getJson(
+      '/schedules',
+      query: {'doctorId': '$doctorId', 'date': date},
+    );
+    if (data is! List) return const <app.Schedule>[];
+    return data
+        .whereType<Map>()
+        .map((m) => app.Schedule.fromMap(Map<String, dynamic>.from(m)))
+        .toList();
   }
 
   Future<int> createSchedule(app.Schedule schedule) async {
-    final db = DbHelper.instance.db;
-    return db.into(db.schedules).insert(
-          SchedulesCompanion.insert(
-            doctorId: schedule.doctorId,
-            date: schedule.date,
-            startTime: schedule.startTime,
-            endTime: schedule.endTime,
-            isBooked: Value(schedule.isBooked),
-          ),
-        );
+    final res = await ApiClient.instance.postJson('/schedules', schedule.toMap());
+    if (res is Map && res['id'] is num) return (res['id'] as num).toInt();
+    return 0;
   }
 
   Future<int> updateSchedule(app.Schedule schedule) async {
-    final db = DbHelper.instance.db;
     if (schedule.id == null) {
       throw ArgumentError('Schedule id is required for update');
     }
-    await (db.update(db.schedules)..where((s) => s.id.equals(schedule.id!)))
-        .write(
-      SchedulesCompanion(
-        doctorId: Value(schedule.doctorId),
-        date: Value(schedule.date),
-        startTime: Value(schedule.startTime),
-        endTime: Value(schedule.endTime),
-        isBooked: Value(schedule.isBooked),
-      ),
-    );
-    return schedule.id!;
+    await ApiClient.instance.putJson('/schedules/${schedule.id}', schedule.toMap());
+    return schedule.id ?? 0;
   }
 
   Future<int> deleteSchedule(int id) async {
-    final db = DbHelper.instance.db;
-    return (db.delete(db.schedules)..where((s) => s.id.equals(id))).go();
-  }
-
-  app.Schedule _toAppSchedule(dynamic row) {
-    return app.Schedule(
-      id: row.id as int?,
-      doctorId: row.doctorId as int,
-      date: row.date as String,
-      startTime: row.startTime as String,
-      endTime: row.endTime as String,
-      isBooked: row.isBooked as bool,
-    );
+    await ApiClient.instance.deleteJson('/schedules/$id');
+    return 1;
   }
 }
 

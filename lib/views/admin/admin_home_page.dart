@@ -4,12 +4,12 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../controllers/appointment_controller.dart';
 import '../../controllers/doctor_controller.dart';
 import '../../controllers/session_controller.dart';
-import '../../database/db_helper.dart';
 import '../../models/appointment_details.dart';
 import '../../models/doctor.dart';
 import '../../models/schedule.dart';
 import '../../controllers/schedule_controller.dart';
 import '../widgets/app_confirm_dialog.dart';
+import '../../api/api_client.dart';
 
 class AdminHomePage extends StatelessWidget {
   const AdminHomePage({super.key});
@@ -40,14 +40,12 @@ class _AdminDashboardBody extends StatefulWidget {
 
 class _AdminDashboardBodyState extends State<_AdminDashboardBody> {
   Future<_Counts> _loadCounts() async {
-    final db = DbHelper.instance.db;
-    final users = await (db.select(db.users)).get();
-    final doctors = await (db.select(db.doctors)).get();
-    final appts = await (db.select(db.appointments)).get();
+    final data = await ApiClient.instance.getJson('/admin/counts');
+    final m = data is Map ? Map<String, dynamic>.from(data) : <String, dynamic>{};
     return _Counts(
-      users: users.length,
-      doctors: doctors.length,
-      appointments: appts.length,
+      users: (m['users'] as num?)?.toInt() ?? 0,
+      doctors: (m['doctors'] as num?)?.toInt() ?? 0,
+      appointments: (m['appointments'] as num?)?.toInt() ?? 0,
     );
   }
 

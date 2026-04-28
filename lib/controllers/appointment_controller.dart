@@ -1,7 +1,4 @@
-import 'package:drift/drift.dart';
-
-import '../database/app_database.dart';
-import '../database/db_helper.dart';
+import '../api/api_client.dart';
 import '../models/appointment.dart' as app;
 import '../models/appointment_details.dart';
 
@@ -10,161 +7,78 @@ class AppointmentController {
   static final AppointmentController instance = AppointmentController._internal();
 
   Future<List<app.Appointment>> getAppointmentsByUser(int userId) async {
-    final db = DbHelper.instance.db;
-    final rows = await (db.select(db.appointments)
-          ..where((a) => a.userId.equals(userId))
-          ..orderBy([(a) => OrderingTerm.desc(a.createdAt)]))
-        .get();
-    return rows.map(_toAppAppointment).toList();
+    final data = await ApiClient.instance.getJson(
+      '/appointments',
+      query: {'userId': '$userId'},
+    );
+    if (data is! List) return const <app.Appointment>[];
+    return data
+        .whereType<Map>()
+        .map((m) => app.Appointment.fromMap(Map<String, dynamic>.from(m)))
+        .toList();
   }
 
   Future<List<AppointmentDetails>> getAppointmentsByUserDetails(int userId) async {
-    final db = DbHelper.instance.db;
-    final query = db.select(db.appointments).join([
-      innerJoin(db.doctors, db.doctors.id.equalsExp(db.appointments.doctorId)),
-      innerJoin(db.schedules, db.schedules.id.equalsExp(db.appointments.scheduleId)),
-      innerJoin(db.users, db.users.id.equalsExp(db.appointments.userId)),
-    ])
-      ..where(db.appointments.userId.equals(userId))
-      ..orderBy([OrderingTerm.desc(db.appointments.createdAt)]);
-
-    final rows = await query.get();
-    return rows.map((r) {
-      final a = r.readTable(db.appointments);
-      final d = r.readTable(db.doctors);
-      final s = r.readTable(db.schedules);
-      final u = r.readTable(db.users);
-      return AppointmentDetails(
-        appointment: _toAppAppointment(a),
-        userName: u.name,
-        doctorName: d.name,
-        specialty: d.specialty,
-        date: s.date,
-        startTime: s.startTime,
-        endTime: s.endTime,
-      );
-    }).toList();
+    final data = await ApiClient.instance.getJson(
+      '/appointments/details',
+      query: {'userId': '$userId'},
+    );
+    return _parseDetailsList(data);
   }
 
   Future<int> createAppointment(app.Appointment appointment) async {
-    final db = DbHelper.instance.db;
-
-    return db.transaction(() async {
-      final schedule = await (db.select(db.schedules)
-            ..where((s) =>
-                s.id.equals(appointment.scheduleId) & s.isBooked.equals(false))
-            ..limit(1))
-          .getSingleOrNull();
-
-      if (schedule == null) {
-        throw StateError('Lịch đã được đặt hoặc không tồn tại.');
-      }
-
-      final id = await db.into(db.appointments).insert(
-            AppointmentsCompanion.insert(
-              userId: appointment.userId,
-              doctorId: appointment.doctorId,
-              scheduleId: appointment.scheduleId,
-              symptom: Value(appointment.symptom),
-              status: Value(appointment.status),
-              createdAt: appointment.createdAt,
-            ),
-          );
-
-      await (db.update(db.schedules)
-            ..where((s) => s.id.equals(appointment.scheduleId)))
-          .write(SchedulesCompanion(isBooked: const Value(true)));
-
-      return id;
-    });
+    final res = await ApiClient.instance.postJson('/appointments', appointment.toMap());
+    if (res is Map && res['id'] is num) return (res['id'] as num).toInt();
+    return 0;
   }
 
   Future<void> cancelAppointment(app.Appointment appointment) async {
-    final db = DbHelper.instance.db;
     if (appointment.id == null) {
       throw ArgumentError('Appointment id is required');
     }
-
-    await db.transaction(() async {
-      await (db.update(db.appointments)
-            ..where((a) => a.id.equals(appointment.id!)))
-          .write(AppointmentsCompanion(status: const Value('cancelled')));
-
-      await (db.update(db.schedules)
-            ..where((s) => s.id.equals(appointment.scheduleId)))
-          .write(SchedulesCompanion(isBooked: const Value(false)));
-    });
+    await ApiClient.instance.postJson('/appointments/${appointment.id}/cancel', {});
   }
 
   Future<List<app.Appointment>> getAllAppointments() async {
-    final db = DbHelper.instance.db;
-    final rows = await (db.select(db.appointments)
-          ..orderBy([(a) => OrderingTerm.desc(a.createdAt)]))
-        .get();
-    return rows.map(_toAppAppointment).toList();
+    final data = await ApiClient.instance.getJson('/appointments');
+    if (data is! List) return const <app.Appointment>[];
+    return data
+        .whereType<Map>()
+        .map((m) => app.Appointment.fromMap(Map<String, dynamic>.from(m)))
+        .toList();
   }
 
   Future<List<AppointmentDetails>> getAllAppointmentsDetails() async {
-    final db = DbHelper.instance.db;
-    final query = db.select(db.appointments).join([
-      innerJoin(db.doctors, db.doctors.id.equalsExp(db.appointments.doctorId)),
-      innerJoin(db.schedules, db.schedules.id.equalsExp(db.appointments.scheduleId)),
-      innerJoin(db.users, db.users.id.equalsExp(db.appointments.userId)),
-    ])
-      ..orderBy([OrderingTerm.desc(db.appointments.createdAt)]);
-
-    final rows = await query.get();
-    return rows.map((r) {
-      final a = r.readTable(db.appointments);
-      final d = r.readTable(db.doctors);
-      final s = r.readTable(db.schedules);
-      final u = r.readTable(db.users);
-      return AppointmentDetails(
-        appointment: _toAppAppointment(a),
-        userName: u.name,
-        doctorName: d.name,
-        specialty: d.specialty,
-        date: s.date,
-        startTime: s.startTime,
-        endTime: s.endTime,
-      );
-    }).toList();
+    final data = await ApiClient.instance.getJson('/appointments/details');
+    return _parseDetailsList(data);
   }
 
   Future<void> confirmAppointment(int appointmentId) async {
-    final db = DbHelper.instance.db;
-    await (db.update(db.appointments)..where((a) => a.id.equals(appointmentId)))
-        .write(AppointmentsCompanion(status: const Value('confirmed')));
+    await ApiClient.instance.postJson('/appointments/$appointmentId/confirm', {});
   }
 
   Future<void> deleteAppointment(int appointmentId) async {
-    final db = DbHelper.instance.db;
-    await db.transaction(() async {
-      final a = await (db.select(db.appointments)
-            ..where((x) => x.id.equals(appointmentId))
-            ..limit(1))
-          .getSingleOrNull();
-      if (a == null) return;
-
-      // trả slot về open
-      await (db.update(db.schedules)..where((s) => s.id.equals(a.scheduleId)))
-          .write(const SchedulesCompanion(isBooked: Value(false)));
-
-      await (db.delete(db.appointments)..where((x) => x.id.equals(appointmentId)))
-          .go();
-    });
+    await ApiClient.instance.deleteJson('/appointments/$appointmentId');
   }
 
-  app.Appointment _toAppAppointment(dynamic row) {
-    return app.Appointment(
-      id: row.id as int?,
-      userId: row.userId as int,
-      doctorId: row.doctorId as int,
-      scheduleId: row.scheduleId as int,
-      symptom: row.symptom as String,
-      status: row.status as String,
-      createdAt: row.createdAt as String,
-    );
+  List<AppointmentDetails> _parseDetailsList(dynamic data) {
+    if (data is! List) return const <AppointmentDetails>[];
+    return data.whereType<Map>().map((m) {
+      final mm = Map<String, dynamic>.from(m);
+      final apptMap = mm['appointment'];
+      final appt = apptMap is Map
+          ? app.Appointment.fromMap(Map<String, dynamic>.from(apptMap))
+          : app.Appointment.fromMap(const {});
+      return AppointmentDetails(
+        appointment: appt,
+        userName: (mm['userName'] as String?) ?? '',
+        doctorName: (mm['doctorName'] as String?) ?? '',
+        specialty: (mm['specialty'] as String?) ?? '',
+        date: (mm['date'] as String?) ?? '',
+        startTime: (mm['startTime'] as String?) ?? '',
+        endTime: (mm['endTime'] as String?) ?? '',
+      );
+    }).toList();
   }
 }
 
